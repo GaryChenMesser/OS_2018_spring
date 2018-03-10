@@ -21,3 +21,51 @@ static struct miscdevice hello_dev = {
   .name = "hello",
   .fops = &hello_fops
 };
+
+static int hello_open(struct inode* inode, struct file* file)
+{
+  return 0;
+}
+static int hello_close(struct inode* inode, struct file* file)
+{
+  return 0;
+}
+static long hello_ioctl(struct file* file, unsigned int ioctl_num, unsigned long ioctl_param)
+{
+  long ret = -EINVAL;
+  char buf[32];
+  
+  switch(ioctl_num){
+    case HELLO_IOCTL_PRINT:
+      if(copy_from_user(buf, (char*)ioctl_param, 32))
+        return -ENOMEM;
+      printk(KERN_WARNING "%s\n", buf);
+      ret = 0;
+      break;
+  }
+  
+  return ret;
+}
+
+static int __init hello_init(void)
+{
+  int ret;
+  
+  if((ret = misc_register(&hello_dev)) < 0){
+    printk(KERN_ERR "misc_register failed!\n");
+    return ret;
+  }
+  
+  printk(KERN_INFO "hello initialized!\n");
+  
+  return 0;
+}
+
+static void __exit hello_exit(void)
+{
+  misc_deregister(&hello_dev);
+  printk(KERN_INFO "hello exited!\n");
+}
+
+module_init(hello_init);
+module_exit(hello_exit);
