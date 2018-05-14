@@ -22,7 +22,8 @@
 // 1->FIFO, 2->RR, which is pre-vuilt in kernel.
 // 5->SJF, 6->PSJF, need to set by us.
 int POLICY[4] = {1, 2, 5, 6};
-unsigned long clock = 0;
+volatile unsigned long clock = 0;
+volatile unsigned long remain = 0;
 sem_t mutex, cond;
 
 // sorting function for recording indices
@@ -77,7 +78,9 @@ void inverse_permutation(const int a[], int b[], int N){
 	}
 }
 
-unsigned long read_clock(){
+// flag == 1 for reading clock
+// flag == 0 for reading remain
+unsigned long reader(int flag){
 	unsigned long temp;
 	unsigned read_count = 0;
 	
@@ -88,7 +91,7 @@ unsigned long read_clock(){
 	sem_post(&mutex);
 	
 	// critical section
-	temp = clock;
+	temp = (flag) ? clock : remain;
 	
 	// unclock
 	sem_wait(&mutex);
@@ -99,7 +102,7 @@ unsigned long read_clock(){
 	return temp;
 }
 
-unsigned long write_clock(unsigned long add){
+unsigned long writer(unsigned long add){
 	unsigned long temp;
 	// lock
 	sem_wait(&mutex);
@@ -196,11 +199,11 @@ for(size_t i = 0; i < N; ++i){
 	for(size_t i = 0; i < N; ++i){
 		if(!ready_index){
 			wait_unit(R[0]);
-			write_clock(R[0]);
+			writer(R[0]);
 		}
 		do{
 			sem_wait(&cond);
-		}while(R[i] != read_clock());
+		}while(R[i] != reader(1));
 
 		printf("%s forked.\n", P[R_index[i]]);
 		pid = fork();
@@ -211,7 +214,7 @@ for(size_t i = 0; i < N; ++i){
 			for(size_t w = 0; w < T[T_inverse[R_index[i]]]; ++w){
 				wait_one_unit;
 				
-				write_clock(1);
+				writer(1);
 				sem_post(&cond);
 			}
 			printf("%s terminated.", P[R_index[i]]);
